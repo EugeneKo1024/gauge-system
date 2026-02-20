@@ -4,10 +4,10 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 import os
-import json  # <- 추가됨
+import json
 
 # ==========================================
-# 1. 설정 및 연결
+# 1. 설정 및 연결 (배포용 수정판)
 # ==========================================
 st.set_page_config(layout="wide", page_title="현장 게이지 관리")
 
@@ -15,11 +15,11 @@ st.set_page_config(layout="wide", page_title="현장 게이지 관리")
 def connect_to_sheet():
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     
-    # 1. 인터넷(스트림릿 클라우드) 환경일 때
+    # 1. 스트림릿 클라우드(배포) 환경일 때 (Secrets 사용)
     if "google_secret_json" in st.secrets:
         secret_dict = json.loads(st.secrets["google_secret_json"])
         creds = ServiceAccountCredentials.from_json_keyfile_dict(secret_dict, scope)
-    # 2. 로컬(팀장님 PC) 환경일 때
+    # 2. 내 컴퓨터(로컬) 환경일 때 (파일 사용)
     else:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         json_path = os.path.join(current_dir, "secrets.json")
@@ -28,7 +28,21 @@ def connect_to_sheet():
     client = gspread.authorize(creds)
     return client
 
-SHEET_FILE_NAME = "Gauges_System"
+SHEET_FILE_NAME = "Gauges_System" 
+
+# [추가됨] 데이터 로딩 함수 (이게 없어서 에러가 났던 겁니다!)
+@st.cache_data(ttl=5)
+def get_gauge_data():
+    client = connect_to_sheet()
+    sh = client.open(SHEET_FILE_NAME)
+    return sh.worksheet("Status").get_all_records()
+
+@st.cache_data(ttl=60)
+def get_user_list():
+    client = connect_to_sheet()
+    sh = client.open(SHEET_FILE_NAME)
+    raw_users = sh.worksheet("Users").col_values(1)
+    return raw_users[1:] if raw_users and raw_users[0] == "이름" else raw_users
 
 # ==========================================
 # 2. 디자인 코드 (CSS)
