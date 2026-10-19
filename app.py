@@ -144,39 +144,56 @@ st.markdown(
   [data-testid="stHeader"] {background:transparent;}
   #MainMenu,footer {visibility:hidden;}
   .block-container {max-width:1240px;padding:1.4rem 1.7rem 4rem;}
+  /* 태블릿 사용 환경: 모든 화면의 기본 읽기 크기를 확장 */
+  .stApp {font-size:21px;}
+  .stMarkdown p, .stMarkdown li, .stText, div[data-testid="stAlert"] p {font-size:20px!important;line-height:1.55!important;}
+  div[data-testid="stWidgetLabel"] p, .stSelectbox label p, .stTextInput label p {font-size:21px!important;font-weight:750!important;}
+  [data-testid="stCaptionContainer"] p, .stCaption p {font-size:17px!important;}
+  div[data-testid="stAlert"] {font-size:19px!important;}
+  div[data-testid="stSelectbox"] [data-baseweb="select"] span,
+  div[data-testid="stTextInput"] input {font-size:22px!important;}
+  [data-testid="stDataFrame"] {font-size:19px!important;}
+  [data-testid="stDataFrame"] [role="columnheader"],
+  [data-testid="stDataFrame"] [role="gridcell"] {font-size:19px!important;}
   .brand-bar {display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px;}
-  .brand-id {display:flex;align-items:center;gap:11px;font-size:16px;font-weight:850;color:var(--navy);}
-  .brand-icon {width:39px;height:39px;border-radius:12px;background:var(--navy);color:#fff;display:grid;place-items:center;font-size:22px;}
-  .brand-meta {font-size:13px;color:var(--muted);font-weight:600;}
+  .brand-id {display:flex;align-items:center;gap:11px;font-size:21px;font-weight:850;color:var(--navy);}
+  .brand-icon {width:47px;height:47px;border-radius:12px;background:var(--navy);color:#fff;display:grid;place-items:center;font-size:22px;}
+  .brand-meta {font-size:16px;color:var(--muted);font-weight:600;}
   .page-banner {background:linear-gradient(112deg,#10243B 0%,#184D83 60%,#287AB9 100%);padding:29px 34px 28px;border-radius:23px;color:#fff;margin-bottom:20px;box-shadow:0 15px 38px rgba(10,43,82,.13);}
-  .eyebrow {color:#9EDAF8!important;font-size:13px!important;letter-spacing:2px;font-weight:800;margin:0 0 7px!important;}
-  .page-banner h1 {font-size:clamp(28px,4vw,43px)!important;font-weight:860!important;line-height:1.24!important;color:white!important;margin:0!important;}
-  .banner-description {font-size:16px!important;color:#E2ECF7!important;margin:10px 0 0!important;}
-  .section-title {font-size:21px;font-weight:850;color:var(--navy);margin:24px 0 13px;}
+  .eyebrow {color:#9EDAF8!important;font-size:17px!important;letter-spacing:2px;font-weight:800;margin:0 0 7px!important;}
+  .page-banner h1 {font-size:clamp(34px,4vw,48px)!important;font-weight:860!important;line-height:1.24!important;color:white!important;margin:0!important;}
+  .banner-description {font-size:21px!important;color:#E2ECF7!important;margin:10px 0 0!important;}
+  .section-title {font-size:27px;font-weight:850;color:var(--navy);margin:24px 0 13px;}
   .kpi-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:4px 0 26px;}
   .kpi {background:#fff;border:1px solid var(--line);border-radius:18px;padding:17px 22px;box-shadow:0 6px 22px rgba(17,44,76,.04);}
-  .kpi-label {font-size:15px;color:var(--muted);font-weight:750;margin:0 0 5px;}
+  .kpi-label {font-size:19px;color:var(--muted);font-weight:750;margin:0 0 5px;}
   .kpi-number {font-size:40px;font-weight:900;color:var(--navy);line-height:1.1;}
   .kpi-number.green {color:#079669}.kpi-number.orange {color:#C57714}
   .detail-card {background:#fff;border:1px solid var(--line);border-radius:17px;padding:18px 21px;margin:8px 0;}
   .detail-top {display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
-  .detail-name {font-size:21px;font-weight:850;color:var(--navy);}
-  .detail-sub {font-size:14px;color:var(--muted);margin-top:7px;}
-  .status-pill {display:inline-block;padding:6px 12px;border-radius:100px;font-size:13px;font-weight:850;white-space:nowrap;}
+  .detail-name {font-size:26px;font-weight:850;color:var(--navy);}
+  .detail-sub {font-size:19px;color:var(--muted);margin-top:7px;}
+  .status-pill {display:inline-block;padding:8px 15px;border-radius:100px;font-size:18px;font-weight:850;white-space:nowrap;}
   .status-pill.available {background:#E2F7EF;color:#07815A;}
   .status-pill.borrowed {background:#FFF0E5;color:#AE6210;}
   .status-pill.inspection {background:#EAEFF5;color:#617184;}
   .status-pill.neutral {background:#EEF3FB;color:#43617C;}
-  div.stButton>button, div.stFormSubmitButton>button {width:100%;min-height:70px;border:1px solid #CBD9EA;border-radius:15px!important;font-size:20px!important;font-weight:800!important;box-shadow:0 3px 8px rgba(23,51,83,.04);transition:filter .12s,transform .12s;}
+  div.stButton>button, div.stFormSubmitButton>button {width:100%;min-height:82px;border:1px solid #CBD9EA;border-radius:15px!important;font-size:24px!important;font-weight:800!important;box-shadow:0 3px 8px rgba(23,51,83,.04);transition:filter .12s,transform .12s;}
   div.stButton>button:hover,div.stFormSubmitButton>button:hover {transform:translateY(-1px);filter:brightness(.98);}
   div.stButton>button[kind="primary"],div.stFormSubmitButton>button[kind="primary"] {background:var(--blue);border-color:var(--blue);color:white;}
   div.stButton>button[kind="secondary"],div.stFormSubmitButton>button[kind="secondary"] {background:#fff;color:var(--ink);}
   div[data-testid="stSelectbox"] [data-baseweb="select"]>div,div[data-testid="stTextInput"] [data-baseweb="input"]>div {min-height:66px;border-radius:14px;background:#fff;}
-  div[data-testid="stSelectbox"] span,div[data-testid="stTextInput"] input {font-size:19px!important;}
+  div[data-testid="stSelectbox"] span,div[data-testid="stTextInput"] input {font-size:22px!important;}
+  /* 첫 화면의 대여/관리 버튼은 태블릿에서 크고 동일한 높이로 표시 */
+  .st-key-home_borrow button, .st-key-home_admin button {min-height:116px!important;font-size:clamp(22px,2.6vw,31px)!important;}
+  .st-key-home_borrow button p, .st-key-home_admin button p {font-size:inherit!important;font-weight:850!important;}
+  /* 홈 화면에서 3:1 비율을 좁은 태블릿에서도 유지 */
+  .st-key-home_actions [data-testid="stHorizontalBlock"] {flex-wrap:nowrap!important;}
+  .st-key-home_actions [data-testid="column"] {min-width:0!important;}
   div[data-testid="stDataFrame"] {border:1px solid var(--line);border-radius:15px;overflow:hidden;}
   label,p {color:var(--ink);}
   [data-testid="stAlert"] {border-radius:14px;}
-  @media(max-width:760px){.block-container{padding:.9rem .75rem 3rem}.page-banner{padding:22px 19px;border-radius:18px}.kpi-grid{gap:8px}.kpi{padding:12px}.kpi-number{font-size:30px}.kpi-label{font-size:12px}.brand-meta{display:none}div.stButton>button,div.stFormSubmitButton>button{min-height:64px;font-size:17px!important}.detail-name{font-size:18px}}
+  @media(max-width:760px){.block-container{padding:.9rem .75rem 3rem}.page-banner{padding:22px 19px;border-radius:18px}.brand-meta{display:none}.brand-id{font-size:20px}.section-title{font-size:24px}.detail-name{font-size:23px}.detail-sub{font-size:18px}div.stButton>button,div.stFormSubmitButton>button{min-height:78px;font-size:21px!important}.st-key-home_borrow button,.st-key-home_admin button{min-height:105px!important;font-size:clamp(19px,3vw,25px)!important}}
 </style>
 """,
     unsafe_allow_html=True,
@@ -205,36 +222,31 @@ if "flash" in st.session_state:
     st.success(st.session_state.pop("flash"))
 
 state = st.session_state.step
-count_all = len(rows)
 count_available = sum(row["상태"] == "대여가능" for row in rows)
 count_borrowed = sum(row["상태"] == "대여중" for row in rows)
 count_inspection = sum(row["상태"] == "검수중" for row in rows)
 
 if state == "HOME":
-    banner("GAUGE STATUS OVERVIEW", "게이지 관리 대시보드", "게이지 불출과 반납을 간편하고 빠르게 처리하세요.")
-    st.markdown(
-        '<div class="kpi-grid">'
-        f'<div class="kpi"><div class="kpi-label">전체 게이지</div><div class="kpi-number">{count_all}</div></div>'
-        f'<div class="kpi"><div class="kpi-label">대여 가능</div><div class="kpi-number green">{count_available}</div></div>'
-        f'<div class="kpi"><div class="kpi-label">대여중 · 검수중</div><div class="kpi-number orange">{count_borrowed + count_inspection}</div></div>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
-    c_start, c_admin, c_refresh = st.columns([2.3, 1.1, 1.1], gap="small")
-    with c_start:
-        if st.button("＋ 게이지 대여하기", type="primary", use_container_width=True):
-            goto("LIST")
-    with c_admin:
-        if st.button("⚙ 관리 / 검수", use_container_width=True):
-            goto("ADMIN")
-    with c_refresh:
-        if st.button("↻ 현황 새로고침", use_container_width=True):
+    # 홈 첫 줄: 대여 75% / 관리·검수 25%. 기존 대시보드 제목과 KPI 요약은 숨김.
+    with st.container(key="home_actions"):
+        c_start, c_admin = st.columns([3, 1], gap="small")
+        with c_start:
+            if st.button("＋ 게이지 대여", type="primary", use_container_width=True, key="home_borrow"):
+                goto("LIST")
+        with c_admin:
+            if st.button("⚙ 관리 / 검수", use_container_width=True, key="home_admin"):
+                goto("ADMIN")
+    # 반납 기능은 기존처럼 홈에서 바로 접근 가능하도록 유지.
+    refresh_col, refresh_action = st.columns([3, 1], gap="small")
+    with refresh_col:
+        st.markdown('<div class="section-title">현재 대여중인 게이지 · 터치하여 반납</div>', unsafe_allow_html=True)
+    with refresh_action:
+        if st.button("↻ 새로고침", use_container_width=True, key="home_refresh"):
             try:
                 rows = load_status(force=True)
                 st.rerun()
             except Exception as exc:
                 st.error(f"새로고침 실패: {exc}")
-    st.markdown('<div class="section-title">현재 대여중인 게이지 · 터치하여 반납</div>', unsafe_allow_html=True)
     borrowed = [row for row in rows if row["상태"] == "대여중"]
     if not borrowed:
         st.info("현재 대여중인 게이지가 없습니다.")
@@ -385,10 +397,10 @@ elif state == "ADMIN":
             msg = f"{len(changes)}개 게이지 검수 {'발주' if inspect else '완료'} 처리 완료"
             if save_changes(changes, msg):
                 goto("ADMIN")
-    if st.button("← 대시보드로 돌아가기", use_container_width=True):
+    if st.button("← 홈으로 돌아가기", use_container_width=True):
         goto("HOME")
 
 else:
     goto("HOME")
 
-st.caption("GAUGE CONTROL  ·  Google Sheets 즉시 저장  ·  현황 최대 60초 캐시  ·  상태 새로고침은 대시보드에서")
+st.caption("GAUGE CONTROL  ·  Google Sheets 즉시 저장  ·  현황 최대 60초 캐시  ·  상태 새로고침은 홈 화면에서")
