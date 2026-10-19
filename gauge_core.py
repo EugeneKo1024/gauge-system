@@ -118,3 +118,43 @@ def update_local_records(records: list[dict], changes: Iterable[dict]) -> list[d
                 new_record[key] = item[key]
         result.append(new_record)
     return result
+
+
+def build_outbox_transaction(changes: Iterable[dict], status_sheet_id: int, logs_sheet_id: int) -> dict:
+    """B형: 동기화 대기열의 모든 이력을 남기되, Status는 게이지별 마지막 상태만 쓴다.
+
+    한 게이지가 1분 사이 대여→반납되어도 두 이력을 순서대로 보존한다.
+    Logs E열은 재시도 중복 방지용 UUID 식별자.
+    """
+    items = list(changes)
+    if not items:
+        raise ValueError('대기 중인 작업이 없습니다.')
+    final_by_row = {}
+    seen_markers = set()
+    log_rows = []
+    for item in items:
+        row_number = int(item['sheet_row'])
+        log_id = str(item['로그ID'])
+        if row_number < 2 or not log_id or log_id in seen_markers:
+            raise ValueError('중복 또는 유효하지 않은 대기 작업입니다.')
+        seen_markers.add(log_id)
+        final_by_row[row_number] = item
+        log_rows.append({'values': [
+            _text_cell(item['로그일시']), _text_cell(item['게이지명']),
+            _text_cell(item['로그사용자']), _text_cell(item['로그작업']),
+            _text_cell(log_id),
+        ]})
+    requests = []
+    for row_number, item in final_by_row.items():
+        requests.append({'updateCells': {
+            'range': {
+                'sheetId': int(status_sheet_id), 'startRowIndex': row_number - 1,
+                'endRowIndex': row_number, 'startColumnIndex': 1, 'endColumnIndex': 4,
+            },
+            'rows': [{'values': [_text_cell(item[field]) for field in ('상태', '대여자', '대여일시')]}],
+            'fields': 'userEnteredValue',
+        }})
+    requests.append({'appendCells': {
+        'sheetId': int(logs_sheet_id), 'rows': log_rows, 'fields': 'userEnteredValue',
+    }})
+    return {'requests': requests, 'includeSpreadsheetInResponse': False}

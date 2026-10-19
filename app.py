@@ -1,4 +1,4 @@
-"""현장 게이지 관리 키오스크 — A형(즉시 저장, 최소 API 호출)."""
+"""현장 게이지 관리 키오스크 — 태블릿 대형 선택 목록 + 선택형 B 동기화."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -6,6 +6,7 @@ from html import escape
 import json
 import os
 import time
+import uuid
 from zoneinfo import ZoneInfo
 
 import gspread
@@ -14,12 +15,16 @@ import streamlit as st
 from oauth2client.service_account import ServiceAccountCredentials
 
 from gauge_core import build_transaction, parse_status_table, update_local_records
+from outbox import SupabaseOutbox, apply_pending, flush_events
 
 st.set_page_config(page_title="게이지 관리 | 현장 키오스크", page_icon="📏", layout="wide")
 
 SHEET_FILE_NAME = "Gauges_System"
 STATUS_TTL_SECONDS = 60
 KST = ZoneInfo("Asia/Seoul")
+SYNC_SECONDS = 60
+# Supabase 설정이 없으면 기존의 안전한 즉시 저장(A 방식)을 자동 유지한다.
+BATCH_MODE = bool(st.secrets.get("supabase_url") and st.secrets.get("supabase_service_role_key"))
 
 
 # Streamlit Secrets에 저장된 기존 google_secret_json 값을 그대로 사용한다.
@@ -64,7 +69,43 @@ def load_status(*, force: bool = False) -> list[dict]:
     if force or "status_rows" not in st.session_state or time.monotonic() - last_loaded >= STATUS_TTL_SECONDS:
         st.session_state.status_rows = fetch_status()
         st.session_state.status_loaded_at = time.monotonic()
+    if BATCH_MODE and st.session_state.get("queue_events"):
+        # 새로고침한 Status에도 Sheets 전송 전 작업 상태를 다시 겹쳐 표시한다.
+        if force or st.session_state.get("status_loaded_at") != st.session_state.get("queue_applied_at"):
+            st.session_state.status_rows = apply_pending(st.session_state.status_rows, st.session_state.queue_events)
+            st.session_state.queue_applied_at = st.session_state.status_loaded_at
     return st.session_state.status_rows
+
+
+@st.cache_resource
+def get_outbox():
+    return SupabaseOutbox(st.secrets["supabase_url"], st.secrets["supabase_service_role_key"])
+
+
+def initialize_outbox():
+    if not BATCH_MODE or "queue_events" in st.session_state:
+        return
+    # 재배포/갤럭시탭 브라우저 재접속 뒤에도 미전송 기록을 복원한다.
+    events = get_outbox().pending()
+    st.session_state.queue_events = events
+    st.session_state.status_rows = apply_pending(st.session_state.status_rows, events)
+    st.session_state.queue_applied_at = st.session_state.status_loaded_at
+    st.session_state.last_sync_attempt = time.monotonic() - SYNC_SECONDS if events else time.monotonic()
+
+
+def sync_now() -> bool:
+    if not BATCH_MODE:
+        return True
+    st.session_state.last_sync_attempt = time.monotonic()
+    try:
+        spreadsheet, status_sheet, logs_sheet, _ = get_sheet_resources()
+        flush_events(get_outbox(), spreadsheet, status_sheet, logs_sheet)
+        st.session_state.queue_events = get_outbox().pending()
+        st.session_state.pop("sync_error", None)
+        return True
+    except Exception as exc:
+        st.session_state.sync_error = str(exc)
+        return False
 
 
 def now_text():
@@ -91,6 +132,26 @@ def save_changes(changes: list[dict], success_message: str) -> bool:
     예외 시 자동 재시도하지 않는다: 타임아웃 후 중복 로그 추가를 방지하기 위해
     실제 Sheets 기록을 먼저 확인하도록 안내한다.
     """
+    if BATCH_MODE:
+        # 응답 손실 뒤 같은 작업을 다시 누르더라도 동일 ID로 재전송하여 중복 방지.
+        fingerprint = json.dumps(changes, ensure_ascii=False, sort_keys=True)
+        unconfirmed = st.session_state.get("unconfirmed_event")
+        event_id = (unconfirmed["id"] if unconfirmed and unconfirmed["fingerprint"] == fingerprint
+                    else str(uuid.uuid4()))
+        st.session_state.unconfirmed_event = {"id": event_id, "fingerprint": fingerprint}
+        try:
+            # 서버 메모리가 아니라 Supabase 영속 대기열에 먼저 저장된다.
+            get_outbox().add(changes, event_id=event_id)
+        except Exception as exc:
+            st.error("안전 대기열에 저장하지 못해 작업을 반영하지 않았습니다. 다시 시도하세요.")
+            st.caption(f"오류 정보: {exc}")
+            return False
+        st.session_state.pop("unconfirmed_event", None)
+        if not any(item["id"] == event_id for item in st.session_state.queue_events):
+            st.session_state.queue_events.append({"id": event_id, "changes": changes})
+        st.session_state.status_rows = update_local_records(st.session_state.status_rows, changes)
+        st.session_state.flash = success_message + " · 전송 대기열 저장됨 (Sheets 최대 약 60초 지연)"
+        return True
     try:
         spreadsheet, status_sheet, logs_sheet, _ = get_sheet_resources()
         payload = build_transaction(changes, status_sheet.id, logs_sheet.id)
@@ -133,6 +194,32 @@ def banner(eyebrow: str, heading: str, description: str):
 def status_pill(state: str) -> str:
     css = {"대여가능": "available", "대여중": "borrowed", "검수중": "inspection"}.get(state, "neutral")
     return f'<span class="status-pill {css}">{escape(state)}</span>'
+
+
+def large_scroll_picker(*, label: str, values: list[str], prefix: str, placeholder: str) -> str | None:
+    """네이티브 selectbox 메뉴 대신 앱 내부에 대형 스크롤 선택기를 배치.
+
+    CSS 적용이 불안정한 BaseWeb portal 옵션을 사용하지 않는다.
+    """
+    st.markdown(f'<div class="large-picker-heading">{escape(label)}</div>', unsafe_allow_html=True)
+    selected_key = f'{prefix}_selection'
+    search = st.text_input(f'{label} 검색', placeholder=placeholder, key=f'{prefix}_search')
+    filtered = [value for value in values if search.strip().casefold() in value.casefold()]
+    if selected_key not in st.session_state or st.session_state[selected_key] not in values:
+        st.session_state[selected_key] = values[0] if values else None
+    with st.container(height=465, border=True, key=f'{prefix}_scroll_panel'):
+        if not filtered:
+            st.info('검색 결과가 없습니다. 검색어를 바꿔보세요.')
+        for index, value in enumerate(filtered):
+            chosen = value == st.session_state[selected_key]
+            if st.button(('✓  ' if chosen else '') + value,
+                         key=f'{prefix}_pick_{index}', type='primary' if chosen else 'secondary',
+                         use_container_width=True):
+                st.session_state[selected_key] = value
+                st.rerun()
+    st.markdown(f'<div class="large-picker-selected">선택됨: <strong>{escape(st.session_state[selected_key] or "없음")}</strong></div>',
+                unsafe_allow_html=True)
+    return st.session_state[selected_key]
 
 
 # CSS: 갤럭시탭 터치 영역 / 반응형 대시보드 / 밝고 선명한 현장 UI
@@ -222,6 +309,29 @@ st.markdown(
   label,p {color:var(--ink);}
   [data-testid="stAlert"] {border-radius:14px;}
   @media(max-width:760px){.block-container{padding:.9rem .75rem 3rem}.page-banner{padding:22px 19px;border-radius:18px}.brand-meta{display:none}.brand-id{font-size:20px}.section-title{font-size:24px}.detail-name{font-size:23px}.detail-sub{font-size:18px}div.stButton>button,div.stFormSubmitButton>button{min-height:78px;font-size:21px!important}.st-key-home_borrow button,.st-key-home_admin button{min-height:105px!important;font-size:clamp(19px,3vw,25px)!important}.st-key-home_borrow button{min-height:126px!important;font-size:clamp(32px,5vw,42px)!important;padding:17px 12px!important}.st-key-confirm_borrow button,.st-key-cancel_borrow button,.st-key-confirm_borrow button p,.st-key-cancel_borrow button p{font-size:clamp(31px,5vw,44px)!important}}
+
+  /* v3: selectbox 팝업(portal) 대신 스크롤 영역 안에 렌더링한 큰 항목 버튼. */
+  .large-picker-heading {font-size:29px;font-weight:850;color:var(--navy);margin:16px 0 12px;}
+  .large-picker-selected {font-size:27px;font-weight:700;color:var(--navy);margin:11px 0 18px;}
+  .large-picker-selected strong {color:var(--blue);font-weight:900;}
+  .st-key-gauge_scroll_panel, .st-key-user_scroll_panel {background:#fff;border:2px solid #CBD9EA;border-radius:18px;padding:8px;}
+  .st-key-gauge_scroll_panel div.stButton>button,
+  .st-key-user_scroll_panel div.stButton>button {
+      min-height:87px!important;padding:14px 22px!important;justify-content:flex-start!important;
+      white-space:normal!important;text-align:left!important;border-radius:12px!important;
+      margin:3px 0!important;
+  }
+  .st-key-gauge_scroll_panel div.stButton>button p,
+  .st-key-user_scroll_panel div.stButton>button p {
+      font-size:32px!important;font-weight:850!important;line-height:1.3!important;
+      text-align:left!important;overflow-wrap:anywhere;
+  }
+  .st-key-gauge_search input,.st-key-user_search input {font-size:29px!important;min-height:68px!important;}
+  @media(max-width:760px){
+    .st-key-gauge_scroll_panel div.stButton>button p,
+    .st-key-user_scroll_panel div.stButton>button p {font-size:30px!important;}
+    .large-picker-heading{font-size:27px;}
+  }
 </style>
 """,
     unsafe_allow_html=True,
@@ -234,6 +344,8 @@ if "selected_gauge" not in st.session_state:
 
 try:
     rows = load_status()
+    initialize_outbox()
+    rows = st.session_state.status_rows
 except Exception as exc:
     st.error(f"Google Sheets 연결 또는 데이터 구조 확인이 필요합니다: {exc}")
     st.info("Status 시트 첫 행의 A~D열은 게이지명 / 상태 / 대여자 / 대여일시 순서여야 합니다.")
@@ -245,6 +357,27 @@ st.markdown(
     '<span class="brand-meta">● GOOGLE SHEETS 연결</span></div>',
     unsafe_allow_html=True,
 )
+
+if BATCH_MODE:
+    @st.fragment(run_every="10s")
+    def periodic_sync_indicator():
+        # 서버가 켜 있고 갤럭시탭 브라우저 세션이 살아있는 동안 동작한다.
+        if (st.session_state.get("queue_events") and
+                time.monotonic() - st.session_state.last_sync_attempt >= SYNC_SECONDS):
+            sync_now()
+        pending = len(st.session_state.get("queue_events", []))
+        if st.session_state.get("sync_error"):
+            st.error(f'Google Sheets 전송 실패 · 안전 대기열 {pending}건 보존됨: {st.session_state.sync_error}')
+        elif pending:
+            st.info(f'Google Sheets 전송 대기: {pending}개 작업 · 약 60초 주기로 자동 동기화')
+        else:
+            st.caption('● Google Sheets 동기화 완료 · 60초 주기 자동 확인')
+        if st.button('↻ 지금 시트에 동기화', key='force_batch_sync'):
+            if sync_now():
+                st.success('Google Sheets 동기화 완료')
+            else:
+                st.error('동기화 실패. 대기열은 보존되었습니다.')
+    periodic_sync_indicator()
 
 if "flash" in st.session_state:
     st.success(st.session_state.pop("flash"))
@@ -299,10 +432,10 @@ elif state == "LIST":
     available = [row for row in rows if row["상태"] == "대여가능"]
     if available:
         options = [row["게이지명"] for row in available]
-        selected = st.selectbox("게이지 목록", options, key="gauge_choice")
+        selected = large_scroll_picker(label="게이지 목록", values=options, prefix="gauge", placeholder="게이지 이름 검색")
         c_next, c_back = st.columns(2)
         with c_next:
-            if st.button("다음 · 대여자 선택 →", type="primary", use_container_width=True):
+            if st.button("다음 · 대여자 선택 →", type="primary", use_container_width=True, disabled=not selected):
                 goto("ACTION", selected)
         with c_back:
             if st.button("← 취소", use_container_width=True):
@@ -351,7 +484,7 @@ elif state == "ACTION":
             st.stop()
         st.markdown('<div class="section-title">대여자 선택</div>', unsafe_allow_html=True)
         # 사용자 선택은 폼 밖에 둔다: "직접입력" 선택 즉시 이름 입력란이 나타난다.
-        chosen_user = st.selectbox("사용자", users + ["직접입력"], key="borrow_user")
+        chosen_user = large_scroll_picker(label="대여자 이름", values=users + ["직접입력"], prefix="user", placeholder="대여자 이름 검색")
         with st.form("borrow_form"):
             custom_user = st.text_input("직접입력 이름 / 업체명", key="borrow_custom", placeholder="이름 또는 업체명을 입력하세요") if chosen_user == "직접입력" else ""
             left, right = st.columns(2)
@@ -362,7 +495,7 @@ elif state == "ACTION":
         if cancel:
             goto("HOME")
         if submit:
-            borrower = custom_user.strip() if chosen_user == "직접입력" else chosen_user.strip()
+            borrower = custom_user.strip() if chosen_user == "직접입력" else (chosen_user or "").strip()
             if not borrower:
                 st.warning("대여자 이름을 입력하세요.")
             else:
@@ -436,4 +569,4 @@ elif state == "ADMIN":
 else:
     goto("HOME")
 
-st.caption("GAUGE CONTROL  ·  Google Sheets 즉시 저장  ·  현황 최대 60초 캐시  ·  상태 새로고침은 홈 화면에서")
+st.caption("GAUGE CONTROL  ·  " + ("Supabase 안전 대기열 + Sheets 60초 동기화" if BATCH_MODE else "Google Sheets 즉시 저장(A 방식)") + "  ·  현황 최대 60초 캐시")
