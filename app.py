@@ -186,14 +186,42 @@ st.markdown(
   div[data-testid="stSelectbox"] span,div[data-testid="stTextInput"] input {font-size:22px!important;}
   /* 첫 화면의 대여/관리 버튼은 태블릿에서 크고 동일한 높이로 표시 */
   .st-key-home_borrow button, .st-key-home_admin button {min-height:116px!important;font-size:clamp(22px,2.6vw,31px)!important;}
-  .st-key-home_borrow button p, .st-key-home_admin button p {font-size:inherit!important;font-weight:850!important;}
+  .st-key-home_borrow button p, .st-key-home_admin button p {font-size:inherit!important;font-weight:850!important;line-height:1.2!important;}
+  /* 대여 버튼 글자를 넉넉한 여백 안에서 크게 표시 */
+  .st-key-home_borrow button {min-height:136px!important;padding:20px 28px!important;font-size:clamp(34px,4vw,48px)!important;}
+  /* 대여중 항목: 왼쪽 정보 카드 / 오른쪽 2줄 반납 버튼 */
+  div[class*="st-key-borrowed_item_"] [data-testid="stHorizontalBlock"] {align-items:stretch;flex-wrap:nowrap!important;}
+  div[class*="st-key-borrowed_item_"] [data-testid="column"] {min-width:0!important;}
+  div[class*="st-key-borrowed_item_"] .detail-card {height:100%;min-height:114px;box-sizing:border-box;margin:0;display:flex;flex-direction:column;justify-content:center;}
+  div[class*="st-key-return_"] button {min-height:114px!important;height:100%;padding:12px 8px!important;}
+  div[class*="st-key-return_"] button p {font-size:clamp(27px,3vw,37px)!important;line-height:1.16!important;font-weight:900!important;max-width:2.1em;overflow-wrap:anywhere;text-align:center;margin:auto;}
+  /* 게이지/대여자 선택: 닫힌 선택창과 펼쳐진 스크롤 목록 모두 확대 */
+  .st-key-gauge_choice [data-baseweb="select"]>div,
+  .st-key-borrow_user [data-baseweb="select"]>div {min-height:100px!important;padding:14px 18px!important;}
+  .st-key-gauge_choice [data-baseweb="select"] span,
+  .st-key-borrow_user [data-baseweb="select"] span,
+  .st-key-gauge_choice [data-baseweb="select"] input,
+  .st-key-borrow_user [data-baseweb="select"] input {font-size:40px!important;line-height:1.25!important;}
+  .st-key-gauge_choice [data-testid="stWidgetLabel"] p,
+  .st-key-borrow_user [data-testid="stWidgetLabel"] p {font-size:29px!important;}
+  /* BaseWeb의 펼침 메뉴는 selectbox 바깥(portal)에 렌더링됨 */
+  [data-baseweb="popover"] [role="listbox"],
+  [data-baseweb="menu"] [role="listbox"] {max-height:65vh!important;}
+  [data-baseweb="popover"] [role="option"],
+  [data-baseweb="menu"] [role="option"],
+  [data-baseweb="popover"] li {min-height:76px!important;padding:16px 20px!important;font-size:40px!important;line-height:1.3!important;}
+  [data-baseweb="popover"] [role="option"] *,
+  [data-baseweb="menu"] [role="option"] * {font-size:40px!important;line-height:1.3!important;}
+  /* 마지막 확정/취소는 다른 작업 버튼을 건드리지 않고 두 배 가까이 확대 */
+  .st-key-confirm_borrow button,.st-key-cancel_borrow button {min-height:116px!important;padding:16px 10px!important;font-size:44px!important;}
+  .st-key-confirm_borrow button p,.st-key-cancel_borrow button p {font-size:44px!important;line-height:1.2!important;font-weight:900!important;}
   /* 홈 화면에서 3:1 비율을 좁은 태블릿에서도 유지 */
   .st-key-home_actions [data-testid="stHorizontalBlock"] {flex-wrap:nowrap!important;}
   .st-key-home_actions [data-testid="column"] {min-width:0!important;}
   div[data-testid="stDataFrame"] {border:1px solid var(--line);border-radius:15px;overflow:hidden;}
   label,p {color:var(--ink);}
   [data-testid="stAlert"] {border-radius:14px;}
-  @media(max-width:760px){.block-container{padding:.9rem .75rem 3rem}.page-banner{padding:22px 19px;border-radius:18px}.brand-meta{display:none}.brand-id{font-size:20px}.section-title{font-size:24px}.detail-name{font-size:23px}.detail-sub{font-size:18px}div.stButton>button,div.stFormSubmitButton>button{min-height:78px;font-size:21px!important}.st-key-home_borrow button,.st-key-home_admin button{min-height:105px!important;font-size:clamp(19px,3vw,25px)!important}}
+  @media(max-width:760px){.block-container{padding:.9rem .75rem 3rem}.page-banner{padding:22px 19px;border-radius:18px}.brand-meta{display:none}.brand-id{font-size:20px}.section-title{font-size:24px}.detail-name{font-size:23px}.detail-sub{font-size:18px}div.stButton>button,div.stFormSubmitButton>button{min-height:78px;font-size:21px!important}.st-key-home_borrow button,.st-key-home_admin button{min-height:105px!important;font-size:clamp(19px,3vw,25px)!important}.st-key-home_borrow button{min-height:126px!important;font-size:clamp(32px,5vw,42px)!important;padding:17px 12px!important}.st-key-confirm_borrow button,.st-key-cancel_borrow button,.st-key-confirm_borrow button p,.st-key-cancel_borrow button p{font-size:clamp(31px,5vw,44px)!important}}
 </style>
 """,
     unsafe_allow_html=True,
@@ -252,14 +280,19 @@ if state == "HOME":
         st.info("현재 대여중인 게이지가 없습니다.")
     for record in borrowed:
         name = record["게이지명"]
-        st.markdown(
-            '<div class="detail-card"><div class="detail-top">'
-            f'<span class="detail-name">{escape(name)}</span>{status_pill("대여중")}</div>'
-            f'<div class="detail-sub">대여자: {escape(record["대여자"])} · 대여일시: {escape(readable_date(record["대여일시"]))}</div></div>',
-            unsafe_allow_html=True,
-        )
-        if st.button(f"↩  {name} 반납하기", key=f"return_{record['sheet_row']}", use_container_width=True):
-            goto("ACTION", name)
+        with st.container(key=f"borrowed_item_{record['sheet_row']}"):
+            info_col, return_col = st.columns([3, 1], gap="small")
+            with info_col:
+                st.markdown(
+                    '<div class="detail-card"><div class="detail-top">'
+                    f'<span class="detail-name">{escape(name)}</span></div>'
+                    f'<div class="detail-sub">대여자: {escape(record["대여자"])} · 대여일시: {escape(readable_date(record["대여일시"]))}</div></div>',
+                    unsafe_allow_html=True,
+                )
+            with return_col:
+                # CSS에서 네 글자를 두 줄(반납 / 하기)로 표시한다.
+                if st.button("반납하기", key=f"return_{record['sheet_row']}", use_container_width=True):
+                    goto("ACTION", name)
 
 elif state == "LIST":
     banner("STEP 01 / SELECT GAUGE", "대여할 게이지 선택", "대여 가능한 게이지를 선택하세요. 검수중인 게이지는 대여할 수 없습니다.")
@@ -323,9 +356,9 @@ elif state == "ACTION":
             custom_user = st.text_input("직접입력 이름 / 업체명", key="borrow_custom", placeholder="이름 또는 업체명을 입력하세요") if chosen_user == "직접입력" else ""
             left, right = st.columns(2)
             with left:
-                submit = st.form_submit_button("✓ 대여 확정", type="primary", use_container_width=True)
+                submit = st.form_submit_button("✓ 대여 확정", type="primary", use_container_width=True, key="confirm_borrow")
             with right:
-                cancel = st.form_submit_button("← 취소", use_container_width=True)
+                cancel = st.form_submit_button("← 취소", use_container_width=True, key="cancel_borrow")
         if cancel:
             goto("HOME")
         if submit:
